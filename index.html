@@ -142,7 +142,10 @@ custo = instancias * preco_hora * horas_mes
 print(f"{instancias} instâncias: USD {custo:.2f}/mês")
 
 reservado_1a = custo * (1 - 0.40)
-print(f"Reservado 1 ano: USD {reservado_1a:.2f}/mês")` },
+print(f"Reservado 1 ano: USD {reservado_1a:.2f}/mês")`,
+      out:`4 instâncias: USD 280.32/mês
+Reservado 1 ano: USD 168.19/mês (economia 40%)
+Reservado 3 anos: USD 112.13/mês (economia 60%)` },
     { n:2, t:"Strings a fundo", c:["split, strip, startswith","fatiamento [a:b]","find, replace","lower / upper"],
       s:"Extrair IP, método, rota e status de uma linha de log do nginx.",
       e:"Fazer o mesmo para uma linha com query string na rota e um user-agent com espaços.",
@@ -154,7 +157,8 @@ requisicao = linha.split('"')[1]         # GET /api/orders?id=42 HTTP/1.1
 metodo, rota, _ = requisicao.split(" ")
 status = linha.split('" ')[1].split(" ")[0]
 
-print(ip, metodo, rota, status)` },
+print(ip, metodo, rota, status)`,
+      out:`10.0.3.7 GET /api/orders?id=42 502` },
     { n:3, t:"Listas e tuplas", c:["indexação e slices","append, extend, pop","sorted(key=...)","desempacotamento"],
       s:"Lista de pods como tuplas (nome, restarts, ns). Ordenar por restarts, mostrar os 3 piores.",
       e:"Adicionar um filtro: só pods do namespace 'prod'.",
@@ -168,7 +172,10 @@ print(ip, metodo, rota, status)` },
 
 piores = sorted(pods, key=lambda p: p[1], reverse=True)[:3]
 for nome, restarts, ns in piores:
-    print(f"{nome:<14} {ns:<8} restarts={restarts}")` },
+    print(f"{nome:<14} {ns:<8} restarts={restarts}")`,
+      out:`cache-9x2k     prod     restarts=27
+api-7d9f       prod     restarts=14
+api-3b4e       staging  restarts=3` },
     { n:4, t:"Dicionários (o dia mais importante)", c:["chave → valor","get() com default",".items() em loop","dicts aninhados"],
       s:"Um deployment.yaml escrito como dict na mão. Navegar até spec.template.spec.containers[0].image.",
       e:"Trocar a tag da imagem para 'v2.3.1' e imprimir o dict inteiro. Depois listar todas as labels.",
@@ -186,7 +193,9 @@ for nome, restarts, ns in piores:
 
 imagem = deploy["spec"]["template"]["spec"]["containers"][0]["image"]
 print(imagem)
-print(deploy["metadata"].get("annotations", {}))   # {} em vez de KeyError` },
+print(deploy["metadata"].get("annotations", {}))   # {} em vez de KeyError`,
+      out:`ghcr.io/acme/api:v2.3.0
+{}` },
     { n:5, t:"Condicionais e loops", c:["if / elif / else","for, while","break, continue","and, or, not"],
       s:"Percorrer a lista de pods e classificar cada um: healthy, degraded, failed.",
       e:"Contar quantos de cada classe. Parar o loop no primeiro 'failed' e avisar.",
@@ -201,7 +210,9 @@ print(deploy["metadata"].get("annotations", {}))   # {} em vez de KeyError` },
     print(f"{nome}: {estado}")
     if estado == "failed":
         print("Parando: pod em estado crítico")
-        break` },
+        break`,
+      out:`api-7d9f: failed
+Parando: pod em estado crítico` },
     { n:"FDS", weekend:true, t:"Resumo de logs por status", c:["Junta D2–D5"],
       s:"Lista com 10 linhas de log hardcoded. Contar requisições por status code e imprimir tabela.",
       e:"Adicionar a rota mais lenta (o campo tempo vem depois do status).",
@@ -223,7 +234,9 @@ def contar_status(entradas: list) -> dict:
     contagem = {}
     for e in entradas:
         contagem[e["status"]] = contagem.get(e["status"], 0) + 1
-    return contagem` },
+    return contagem`,
+      out:`# python -c "from parser import *; print(contar_status([parse_linha(L1), parse_linha(L2)]))"
+{502: 1, 200: 1}` },
     { n:7, t:"Módulos, venv e pip", c:["import / from","python -m venv","pip install","requirements.txt"],
       s:"Separar em parser.py e main.py. Criar o venv do projeto.",
       e:"Instalar 'rich' e usar rich.print para colorir a tabela.",
@@ -236,7 +249,12 @@ pip freeze > requirements.txt
 
 # main.py
 from parser import parse_linha, contar_status
-from rich import print` },
+from rich import print`,
+      out:`(.venv) $ pip freeze
+markdown-it-py==...
+rich==...
+(.venv) $ python main.py
+# saída colorida pelo rich` },
     { n:8, t:"Arquivos", c:["open / with","ler linha a linha","escrever","encoding"],
       s:"O log agora vem de access.log no disco. Ler, processar, escrever resumo.txt.",
       e:"Processar só as últimas 100 linhas sem carregar o arquivo inteiro na memória.",
@@ -250,7 +268,11 @@ with open("access.log", encoding="utf-8") as f:
 
 with open("resumo.txt", "w", encoding="utf-8") as out:
     for status, qtd in sorted(contar_status(entradas).items()):
-        out.write(f"{status}\\t{qtd}\\n")` },
+        out.write(f"{status}\\t{qtd}\\n")`,
+      out:`$ cat resumo.txt
+200	1834
+404	61
+502	17` },
     { n:9, t:"JSON", c:["json.load / dump","json.loads / dumps","JSON ↔ dict","indent, sort_keys"],
       s:"Salvar o resumo em resumo.json. Ler um kubectl get pods -o json real e listar nome + fase.",
       e:"Gerar um JSON com {status: [rotas]} e validar abrindo em outro script.",
@@ -266,7 +288,19 @@ for item in dados["items"]:
     print(f"{nome:<40} {fase}")
 
 with open("resumo.json", "w") as out:
-    json.dump(contar_status(entradas), out, indent=2)` },
+    json.dump(contar_status(entradas), out, indent=2)`,
+      out:`kube-system   coredns-5d78c9869d-xk2lp     Running
+prod          api-7d9f8b6c4-q2m8z          Running
+prod          worker-2c1a9f7e5-p4w6r       CrashLoopBackOff
+
+$ cat resumo.json
+{
+  "por_fase": {
+    "CrashLoopBackOff": 1,
+    "Running": 2
+  },
+  "total": 3
+}` },
     { n:10, t:"Exceções", c:["try / except / finally","exceções específicas","raise","except Exception as e"],
       s:"Arquivo inexistente, linha malformada, JSON inválido: cada caso com mensagem clara e exit code.",
       e:"Criar sua própria exceção LinhaInvalida e usá-la no parser.",
@@ -282,7 +316,11 @@ try:
 except FileNotFoundError:
     print(f"Arquivo não encontrado: {sys.argv[1]}"); sys.exit(1)
 except json.JSONDecodeError as e:
-    print(f"JSON inválido na linha {e.lineno}: {e.msg}"); sys.exit(1)` },
+    print(f"JSON inválido na linha {e.lineno}: {e.msg}"); sys.exit(1)`,
+      out:`$ python main.py nao-existe.json
+arquivo não encontrado: nao-existe.json
+$ echo $?
+1` },
     { n:"FDS", weekend:true, t:"CLI mínimo com sys.argv", c:["Junta D6–D10"],
       s:"python main.py access.log resumo.json. Sem argumento: mostra uso e sai com código 2.",
       e:"Flag --top N opcional.",
@@ -301,7 +339,8 @@ except json.JSONDecodeError as e:
         return self.status >= 500
 
     def __repr__(self):
-        return f"LogEntry({self.metodo} {self.rota} -> {self.status})"` },
+        return f"LogEntry({self.metodo} {self.rota} -> {self.status})"`,
+      out:`LogEntry(GET /api -> 502) True` },
     { n:12, t:"dataclasses e type hints", c:["@dataclass","list[str], dict[str,int]","Optional / |","frozen=True"],
       s:"Reescrever LogEntry como dataclass. Anotar todas as funções do projeto.",
       e:"Rodar mypy (pip install mypy) e zerar os erros.",
@@ -317,7 +356,9 @@ class LogEntry:
     tempo_ms: int | None = None
 
     def is_error(self) -> bool:
-        return self.status >= 500` },
+        return self.status >= 500`,
+      out:`LogEntry(ip='10.0.3.7', metodo='GET', rota='/api', status=502, tempo_ms=None)
+{'ip': '10.0.3.7', 'metodo': 'GET', 'rota': '/api', 'status': 502, 'tempo_ms': None}` },
     { n:13, t:"pytest", c:["test_*.py","assert","pytest.raises","fixtures simples"],
       s:"Primeiro teste para parse_linha com linha válida e inválida.",
       e:"Cobrir contar_status com lista vazia e com 3 status diferentes.",
@@ -332,7 +373,10 @@ def test_parse_status():
 
 def test_linha_invalida():
     with pytest.raises(LinhaInvalida):
-        parse_linha("lixo")` },
+        parse_linha("lixo")`,
+      out:`$ pytest -q
+..                                                       [100%]
+2 passed in 0.02s` },
     { n:14, t:"pathlib, datetime, Counter", c:["Path / glob","datetime, timedelta, strptime","collections.Counter","defaultdict"],
       s:"Trocar open() por Path. Parsear o timestamp do log. Counter substitui contar_status.",
       e:"Agrupar requisições por minuto e achar o minuto com mais erros 5xx.",
@@ -346,7 +390,9 @@ for arq in Path("logs").glob("*.log"):
     por_status = Counter(e.status for e in entradas)
     print(arq.name, por_status.most_common(3))
 
-ts = datetime.strptime("29/Sep/2026:10:15:01", "%d/%b/%Y:%H:%M:%S")` },
+ts = datetime.strptime("29/Sep/2026:10:15:01", "%d/%b/%Y:%H:%M:%S")`,
+      out:`access.log [(200, 1834), (404, 61), (502, 17)]
+[('10:15', 9)]` },
     { n:15, t:"ruff, estrutura de repo, commit limpo", c:["ruff check / format","pyproject.toml mínimo","src/ e tests/",".gitignore"],
       s:"Formatar tudo, organizar em src/logtool/ e tests/. README com badges de teste.",
       e:"Configurar pre-commit com ruff.",
@@ -359,7 +405,11 @@ requires-python = ">=3.12"
 dependencies = ["rich"]
 
 [tool.ruff]
-line-length = 100` },
+line-length = 100`,
+      out:`$ ruff check . && ruff format --check .
+All checks passed!
+3 files already formatted
+$ pip install -e . && logtool --help` },
     { n:"FDS", weekend:true, t:"Projeto da Fase 1", c:["Tudo da fase + PyYAML"],
       s:"CLI lê config.yaml (caminho do log, limiares, formato de saída), processa e gera relatório JSON e texto.",
       e:"Teste de integração que roda o CLI inteiro contra um log de exemplo.",
@@ -901,6 +951,7 @@ function renderDay(d){
       <div class="row"><span class="k">Exercício</span><span class="v">${esc(d.e)}</span></div>
       <div class="row"><span class="k">Pronto quando</span><span class="v">${esc(d.p)}</span></div>
       ${d.code?`<details class="code"><summary>ver código de exemplo</summary><pre><code>${esc(d.code)}</code></pre></details>`:""}
+      ${d.out?`<details class="code"><summary>ver resultado esperado</summary><pre><code>${esc(d.out)}</code></pre></details>`:""}
     </div></div>`;
 }
 
