@@ -15,7 +15,7 @@
   --accent:#00d4ff; --accent-2:#a855f7; --accent-3:#ec4899; --ok:#4ade80; --code-bg:#0a0c14; --code-fg:#dfe3f5; color-scheme:dark}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:17px;line-height:1.55;margin:0}
-.wrap{max-width:960px;margin:0 auto;padding-inline:16px;padding-block:0 64px}
+.wrap{max-width:1280px;margin:0 auto;padding-inline:16px;padding-block:0 64px}
 h1,h2,h3,h4{font-family:var(--display);text-wrap:balance;margin:0}
 h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:700;letter-spacing:-.01em}
 h2{font-size:1.35rem;font-weight:600}
@@ -27,7 +27,7 @@ pre code{background:none;padding:0;font-size:inherit;color:inherit}
 .eyebrow{font-family:var(--display);font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);font-weight:600}
 
 header.hero{padding-block:36px 20px;display:grid;gap:14px}
-.hero p.lead{max-width:62ch;color:var(--muted);font-size:1.05rem}
+.hero p.lead{max-width:80ch;color:var(--muted);font-size:1.05rem}
 .stats{display:flex;flex-wrap:wrap;gap:10px 24px;font-variant-numeric:tabular-nums;font-size:.95rem;color:var(--muted)}
 .stats b{color:var(--fg);font-family:var(--display)}
 .rail{height:6px;background:var(--surface-2);border-radius:99px;overflow:hidden}
@@ -40,7 +40,7 @@ nav.phases button:focus-visible,details summary:focus-visible,input:focus-visibl
 
 .phase{display:grid;gap:22px}
 .phase-head{display:grid;gap:8px}
-.phase-head p{color:var(--muted);max-width:65ch}
+.phase-head p{color:var(--muted);max-width:90ch}
 .goal{border-left:3px solid var(--accent-2);padding:10px 14px;background:var(--surface);display:grid;gap:4px}
 .goal .eyebrow{color:var(--accent-2)}
 
@@ -71,7 +71,7 @@ details.week[open]>summary::after{content:"–"}
 .day details.code summary::before{content:"▸ ";}
 .day details.code[open] summary::before{content:"▾ "}
 .day details.code pre{margin-top:8px}
-.lesson{display:grid;gap:10px;font-size:.98rem;max-width:70ch}
+.lesson{display:grid;gap:10px;font-size:.98rem;max-width:95ch}
 .lesson h4{font-size:.78rem;text-transform:uppercase;letter-spacing:.1em;color:var(--accent);margin-top:4px}
 .lesson p{margin:0}
 .lesson ul{margin:0;padding-left:1.2em;display:grid;gap:4px}
