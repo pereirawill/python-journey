@@ -454,7 +454,20 @@ line-length = 100` },
 
 // ---- aulas (teoria) — Fase 1
 const LESSONS = {
-f1w1d1:{min:8,html:`
+f1w1d1:{min:12,html:`
+<h4>Antes de tudo: o ambiente</h4>
+<p>Um Mac ou Linux costuma ter vários Pythons (o do sistema, Homebrew, Anaconda, pyenv). Não use nenhum deles direto: crie um <b>ambiente virtual</b> por projeto. Com <code>uv</code> (instale com <code>curl -LsSf https://astral.sh/uv/install.sh | sh</code> ou <code>brew install uv</code>):</p>
+<pre><code>git clone https://github.com/SEU-USUARIO/python-journey &amp;&amp; cd python-journey
+uv venv --python 3.13 --seed      # cria .venv com pip
+source .venv/bin/activate         # o prompt passa a mostrar (.venv)
+python --version &amp;&amp; python -m pip --version</code></pre>
+<p>No VS Code: <code>Cmd+Shift+P</code> → <b>Python: Select Interpreter</b> → <code>./.venv/bin/python</code>. Feche os terminais abertos e crie um novo; ele já ativa o venv. Instale as extensões <b>Python</b> e <b>Ruff</b>.</p>
+<div class="warn"><h4>Problemas de setup que aparecem no dia 1</h4><ul>
+<li>Terminal abre com o venv de <i>outro</i> projeto: o VS Code guardou o interpretador errado. Select Interpreter resolve.</li>
+<li><code>No module named pip</code> dentro do venv: o Python base era o do sistema ou o do Anaconda. Apague <code>.venv</code> e recrie com <code>uv venv --python /opt/homebrew/bin/python3.13 --seed</code>.</li>
+<li><code>(base)</code> aparece em todo terminal: o conda ativa sozinho. <code>conda config --set auto_activate_base false</code>.</li>
+<li><code>cd: too many arguments</code> ao colar comandos: você colou um comentário junto. Cole uma linha por vez.</li>
+</ul></div>
 <h4>O que você precisa entender hoje</h4>
 <p>Python lê o arquivo de cima para baixo, uma linha por vez. Uma <b>variável</b> é um nome colado num valor: <code>instancias = 4</code> guarda o número 4 sob o nome <code>instancias</code>. Não existe declaração de tipo; o tipo vem do valor. Os quatro tipos que você usa 90% do tempo:</p>
 <ul>
@@ -475,6 +488,7 @@ print(f"{'nome':&lt;10}|{'cpu':&gt;6}")     # colunas alinhadas</code></pre>
 <li><code>"4" * 2</code> é <code>"44"</code>, não 8. String vezes inteiro repete o texto.</li>
 <li><code>"4" + 2</code> quebra com <code>TypeError</code>. Converta antes: <code>int("4") + 2</code>.</li>
 <li><code>0.1 + 0.2 == 0.3</code> é <code>False</code>. Float tem imprecisão; para dinheiro, arredonde na saída com <code>:.2f</code> ou use <code>decimal</code> mais tarde.</li>
+<li><code>280.320000</code> na saída: você escreveu <code>:.6f</code>. Leia o formato assim: <code>{valor:.2f}</code> = <i>dois-pontos</i> começa a formatação, <i>.2</i> é o número de casas, <i>f</i> é "float". Sem formato nenhum, Python imprime o que der: <code>280.32000000000005</code>.</li>
 </ul></div>`},
 f1w1d2:{min:9,html:`
 <h4>Strings são sequências</h4>
