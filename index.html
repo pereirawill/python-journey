@@ -1,0 +1,946 @@
+<title>Python para Infra</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: sticky phase nav on top, week accordion below, day cards expand inline; progress rail in header. */
+:root{
+  --bg:#f6f7fb; --surface:#ffffff; --surface-2:#eef0f7; --fg:#171a2b; --muted:#5d6380; --line:#d8dbe8;
+  --accent:#0891b2; --accent-2:#7c3aed; --accent-3:#db2777; --ok:#15803d; --code-bg:#1b1e2e; --code-fg:#e6e8f2;
+  --display:"Sora",system-ui,sans-serif; --body:"Source Sans 3",system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0e1019; --surface:#161a27; --surface-2:#1e2333; --fg:#e8eaf3; --muted:#9aa1c0; --line:#2b3146;
+  --accent:#00d4ff; --accent-2:#a855f7; --accent-3:#ec4899; --ok:#4ade80; --code-bg:#0a0c14; --code-fg:#dfe3f5; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1019; --surface:#161a27; --surface-2:#1e2333; --fg:#e8eaf3; --muted:#9aa1c0; --line:#2b3146;
+  --accent:#00d4ff; --accent-2:#a855f7; --accent-3:#ec4899; --ok:#4ade80; --code-bg:#0a0c14; --code-fg:#dfe3f5; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:17px;line-height:1.55;margin:0}
+.wrap{max-width:960px;margin:0 auto;padding-inline:16px;padding-block:0 64px}
+h1,h2,h3,h4{font-family:var(--display);text-wrap:balance;margin:0}
+h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:700;letter-spacing:-.01em}
+h2{font-size:1.35rem;font-weight:600}
+h3{font-size:1.05rem;font-weight:600}
+p{margin:0}
+code{font-family:var(--mono);font-size:.88em;background:var(--surface-2);padding:.1em .35em;border-radius:4px}
+pre{font-family:var(--mono);font-size:.82rem;line-height:1.5;background:var(--code-bg);color:var(--code-fg);padding:14px 16px;border-radius:8px;overflow-x:auto;margin:0}
+pre code{background:none;padding:0;font-size:inherit;color:inherit}
+.eyebrow{font-family:var(--display);font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);font-weight:600}
+
+header.hero{padding-block:36px 20px;display:grid;gap:14px}
+.hero p.lead{max-width:62ch;color:var(--muted);font-size:1.05rem}
+.stats{display:flex;flex-wrap:wrap;gap:10px 24px;font-variant-numeric:tabular-nums;font-size:.95rem;color:var(--muted)}
+.stats b{color:var(--fg);font-family:var(--display)}
+.rail{height:6px;background:var(--surface-2);border-radius:99px;overflow:hidden}
+.rail i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent-2),var(--accent-3));transition:width .3s}
+
+nav.phases{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:10px;display:flex;gap:6px;overflow-x:auto;border-bottom:1px solid var(--line);margin-bottom:22px}
+nav.phases button{flex:0 0 auto;font-family:var(--display);font-size:.85rem;font-weight:600;padding:8px 14px;border:1px solid var(--line);background:var(--surface);color:var(--muted);border-radius:99px;cursor:pointer}
+nav.phases button[aria-selected="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+nav.phases button:focus-visible,details summary:focus-visible,input:focus-visible,.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.phase{display:grid;gap:22px}
+.phase-head{display:grid;gap:8px}
+.phase-head p{color:var(--muted);max-width:65ch}
+.goal{border-left:3px solid var(--accent-2);padding:10px 14px;background:var(--surface);display:grid;gap:4px}
+.goal .eyebrow{color:var(--accent-2)}
+
+details.week{border:1px solid var(--line);border-radius:10px;background:var(--surface);overflow:hidden}
+details.week>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:12px;padding:14px 16px;font-family:var(--display);font-weight:600}
+details.week>summary::-webkit-details-marker{display:none}
+details.week>summary .n{color:var(--muted);font-size:.8rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;min-width:6.5em}
+details.week>summary .wk-prog{margin-left:auto;font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums;font-family:var(--body);font-weight:400}
+details.week>summary::after{content:"+";font-size:1.2rem;color:var(--muted);margin-left:8px}
+details.week[open]>summary::after{content:"–"}
+.days{display:grid;gap:1px;background:var(--line);border-top:1px solid var(--line)}
+
+.day{background:var(--surface);padding:14px 16px;display:grid;grid-template-columns:auto 1fr;gap:6px 12px;align-items:start}
+.day.weekend{background:var(--surface-2)}
+.day input[type=checkbox]{width:20px;height:20px;margin-top:3px;accent-color:var(--accent)}
+.day .t{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:baseline;min-width:0}
+.day .t label{font-family:var(--display);font-weight:600;cursor:pointer}
+.day .t .d{font-size:.78rem;color:var(--muted);font-family:var(--mono)}
+.day.done .t label{color:var(--muted);text-decoration:line-through}
+.day .body{grid-column:2;display:grid;gap:10px;min-width:0}
+.day .row{display:grid;grid-template-columns:7.5em 1fr;gap:4px 10px;font-size:.95rem}
+.day .row .k{color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.1em;font-family:var(--display);font-weight:600;padding-top:.25em}
+.day .row .v{min-width:0}
+.day .row .v ul{margin:0;padding-left:1.1em}
+.day details.code{margin-top:2px}
+.day details.code summary{cursor:pointer;font-size:.85rem;color:var(--accent);font-weight:600;list-style:none}
+.day details.code summary::-webkit-details-marker{display:none}
+.day details.code summary::before{content:"▸ ";}
+.day details.code[open] summary::before{content:"▾ "}
+.day details.code pre{margin-top:8px}
+.lesson{display:grid;gap:10px;font-size:.98rem;max-width:70ch}
+.lesson h4{font-size:.78rem;text-transform:uppercase;letter-spacing:.1em;color:var(--accent);margin-top:4px}
+.lesson p{margin:0}
+.lesson ul{margin:0;padding-left:1.2em;display:grid;gap:4px}
+.lesson pre{font-size:.8rem}
+.lesson .warn{border-left:3px solid var(--accent-3);padding:8px 12px;background:var(--surface-2);border-radius:0 6px 6px 0}
+.lesson .warn h4{color:var(--accent-3);margin-top:0}
+details.aula{border:1px solid var(--line);border-radius:8px;padding:0}
+details.aula>summary{cursor:pointer;list-style:none;padding:10px 14px;font-family:var(--display);font-weight:600;font-size:.9rem;display:flex;align-items:center;gap:8px}
+details.aula>summary::-webkit-details-marker{display:none}
+details.aula>summary::before{content:"▸";color:var(--accent)}
+details.aula[open]>summary::before{content:"▾"}
+details.aula>summary .m{margin-left:auto;font-weight:400;font-size:.78rem;color:var(--muted);font-family:var(--body)}
+details.aula>.lesson{padding:4px 14px 16px}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.tag{font-family:var(--mono);font-size:.72rem;padding:2px 8px;border-radius:4px;background:var(--surface-2);color:var(--muted)}
+@media (max-width:520px){.day .row{grid-template-columns:1fr}.day .body{grid-column:1/-1}}
+
+.project{border:1px solid var(--line);border-radius:10px;padding:16px;display:grid;gap:10px;background:var(--surface)}
+.project .eyebrow{color:var(--accent-3)}
+.project ul{margin:0;padding-left:1.2em}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:grid;gap:8px}
+.card ul,.card ol{margin:0;padding-left:1.2em}
+.btn{font-family:var(--display);font-size:.8rem;font-weight:600;padding:6px 12px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer}
+.foot{margin-top:28px;color:var(--muted);font-size:.9rem;display:flex;flex-wrap:wrap;gap:10px 20px;align-items:center}
+@media (prefers-reduced-motion:reduce){.rail i{transition:none}}
+</style>
+
+<div class="wrap">
+<header class="hero">
+  <span class="eyebrow">Curso · 12 semanas · 84 dias</span>
+  <h1>Python para quem faz infra</h1>
+  <p class="lead">Do zero ao serviço em produção, usando o que você já opera todo dia: logs, APIs, Kubernetes, alertas. Cada dia tem um script para rodar. Cada fase termina com algo publicado no GitHub.</p>
+  <div class="stats"><span><b id="done-count">0</b>/84 dias</span><span>Fase atual: <b id="cur-phase">1</b></span><span>Sequência: <b id="streak">0</b> dias</span></div>
+  <div class="rail"><i id="rail"></i></div>
+</header>
+
+<nav class="phases" id="tabs" role="tablist"></nav>
+<main id="main"></main>
+
+<section id="method" class="phase" style="margin-top:36px">
+  <div class="phase-head"><span class="eyebrow">Método</span><h2>Como usar este curso</h2></div>
+  <div class="two">
+    <div class="card"><h3>Ritmo diário (~60 min)</h3><ol><li><b>10 min</b> — rodar o código de ontem antes de abrir o de hoje.</li><li><b>30 min</b> — conceito do dia + script de exemplo.</li><li><b>20 min</b> — o exercício. Sem olhar a solução antes de tentar.</li></ol><p>Dia sem tempo: 15 min de <code>python -i</code> com uma lib nova. O objetivo é não zerar.</p></div>
+    <div class="card"><h3>IA como revisor, não autor</h3><ul><li>Escreva primeiro. Depois peça ao modelo para criticar o seu código.</li><li>Uma vez por semana, inverta: peça o código e explique linha a linha antes de rodar.</li><li>Nunca cole código que você não consegue explicar num commit.</li></ul></div>
+    <div class="card"><h3>Repo <code>python-journey</code></h3><ul><li>Um commit por dia. A sequência no GitHub é o seu contador.</li><li>Estrutura: <code>semana-01/dia-03.py</code>. Projetos em <code>projetos/</code>.</li><li>README com o que aprendeu na semana, em 3 linhas.</li></ul></div>
+    <div class="card"><h3>Regra de ouro</h3><ul><li>Se um script de shell passar de 10 linhas, reescreva em Python.</li><li>Cada dia só usa o que foi visto antes. Se travar, o escopo diminui; a fase não estica.</li><li>Domingo é revisão + projeto. Sem conteúdo novo.</li></ul></div>
+  </div>
+  <div class="foot"><span>Progresso salvo neste navegador.</span><button class="btn" id="reset">Zerar progresso</button></div>
+</section>
+</div>
+
+<script>
+const COURSE = [
+{ id:1, name:"Base da linguagem", tag:"Fase 1 · Dias 1–21", intro:"Só biblioteca padrão, sem rede. O objetivo é sair daqui lendo qualquer script Python e escrevendo os seus com testes.",
+  goal:"CLI que lê um YAML de config, processa logs de nginx/ingress e gera relatório em JSON e texto. Com pytest. Publicado.",
+  weeks:[
+  { title:"Dados e controle de fluxo", days:[
+    { n:1, t:"Instalação e primeiros tipos", c:["python -i","print, variáveis","int, float, str, bool","f-strings"],
+      s:"Calcular o custo mensal de N instâncias a partir de preço/hora.",
+      e:"Adicionar cenário com 1 e 3 anos de reserva e mostrar a economia em %.",
+      p:"Roda sem erro e imprime três linhas formatadas com 2 casas decimais.",
+      code:`instancias = 4
+preco_hora = 0.096          # USD, m5.large on-demand
+horas_mes = 730
+
+custo = instancias * preco_hora * horas_mes
+print(f"{instancias} instâncias: USD {custo:.2f}/mês")
+
+reservado_1a = custo * (1 - 0.40)
+print(f"Reservado 1 ano: USD {reservado_1a:.2f}/mês")` },
+    { n:2, t:"Strings a fundo", c:["split, strip, startswith","fatiamento [a:b]","find, replace","lower / upper"],
+      s:"Extrair IP, método, rota e status de uma linha de log do nginx.",
+      e:"Fazer o mesmo para uma linha com query string na rota e um user-agent com espaços.",
+      p:"Quatro variáveis corretas para duas linhas diferentes.",
+      code:`linha = '10.0.3.7 - - [29/Sep/2026:10:15:01 +0000] "GET /api/orders?id=42 HTTP/1.1" 502 178 "-" "curl/8.4"'
+
+ip = linha.split(" ")[0]
+requisicao = linha.split('"')[1]         # GET /api/orders?id=42 HTTP/1.1
+metodo, rota, _ = requisicao.split(" ")
+status = linha.split('" ')[1].split(" ")[0]
+
+print(ip, metodo, rota, status)` },
+    { n:3, t:"Listas e tuplas", c:["indexação e slices","append, extend, pop","sorted(key=...)","desempacotamento"],
+      s:"Lista de pods como tuplas (nome, restarts, ns). Ordenar por restarts, mostrar os 3 piores.",
+      e:"Adicionar um filtro: só pods do namespace 'prod'.",
+      p:"Saída ordenada decrescente; o slice [:3] devolve exatamente três.",
+      code:`pods = [
+    ("api-7d9f", 14, "prod"),
+    ("worker-2c1a", 0, "prod"),
+    ("api-3b4e", 3, "staging"),
+    ("cache-9x2k", 27, "prod"),
+]
+
+piores = sorted(pods, key=lambda p: p[1], reverse=True)[:3]
+for nome, restarts, ns in piores:
+    print(f"{nome:<14} {ns:<8} restarts={restarts}")` },
+    { n:4, t:"Dicionários (o dia mais importante)", c:["chave → valor","get() com default",".items() em loop","dicts aninhados"],
+      s:"Um deployment.yaml escrito como dict na mão. Navegar até spec.template.spec.containers[0].image.",
+      e:"Trocar a tag da imagem para 'v2.3.1' e imprimir o dict inteiro. Depois listar todas as labels.",
+      p:"Você consegue explicar por que dict['x'] quebra e dict.get('x') não.",
+      code:`deploy = {
+    "metadata": {"name": "api", "labels": {"app": "api", "team": "platform"}},
+    "spec": {
+        "replicas": 3,
+        "template": {"spec": {"containers": [
+            {"name": "api", "image": "ghcr.io/acme/api:v2.3.0",
+             "resources": {"limits": {"cpu": "500m", "memory": "512Mi"}}}
+        ]}},
+    },
+}
+
+imagem = deploy["spec"]["template"]["spec"]["containers"][0]["image"]
+print(imagem)
+print(deploy["metadata"].get("annotations", {}))   # {} em vez de KeyError` },
+    { n:5, t:"Condicionais e loops", c:["if / elif / else","for, while","break, continue","and, or, not"],
+      s:"Percorrer a lista de pods e classificar cada um: healthy, degraded, failed.",
+      e:"Contar quantos de cada classe. Parar o loop no primeiro 'failed' e avisar.",
+      p:"Três contadores corretos e o break funciona.",
+      code:`for nome, restarts, ns in pods:
+    if restarts == 0:
+        estado = "healthy"
+    elif restarts < 10:
+        estado = "degraded"
+    else:
+        estado = "failed"
+    print(f"{nome}: {estado}")
+    if estado == "failed":
+        print("Parando: pod em estado crítico")
+        break` },
+    { n:"FDS", weekend:true, t:"Resumo de logs por status", c:["Junta D2–D5"],
+      s:"Lista com 10 linhas de log hardcoded. Contar requisições por status code e imprimir tabela.",
+      e:"Adicionar a rota mais lenta (o campo tempo vem depois do status).",
+      p:"Commit no repo com README explicando o que o script faz." },
+  ]},
+  { title:"Organização e mundo externo", days:[
+    { n:6, t:"Funções", c:["def, return","parâmetros e defaults","docstring","escopo"],
+      s:"Refatorar o script do fim de semana: parse_linha(), contar_status(), imprimir_tabela().",
+      e:"Uma função top_rotas(linhas, n=5) que devolve as n rotas mais acessadas.",
+      p:"Nenhum código solto fora de função além do bloco final.",
+      code:`def parse_linha(linha: str) -> dict:
+    """Converte uma linha do nginx em dict com ip, metodo, rota e status."""
+    ip = linha.split(" ")[0]
+    metodo, rota, _ = linha.split('"')[1].split(" ")
+    status = int(linha.split('" ')[1].split(" ")[0])
+    return {"ip": ip, "metodo": metodo, "rota": rota, "status": status}
+
+def contar_status(entradas: list) -> dict:
+    contagem = {}
+    for e in entradas:
+        contagem[e["status"]] = contagem.get(e["status"], 0) + 1
+    return contagem` },
+    { n:7, t:"Módulos, venv e pip", c:["import / from","python -m venv","pip install","requirements.txt"],
+      s:"Separar em parser.py e main.py. Criar o venv do projeto.",
+      e:"Instalar 'rich' e usar rich.print para colorir a tabela.",
+      p:"requirements.txt commitado; .venv no .gitignore.",
+      code:`# terminal
+python -m venv .venv
+source .venv/bin/activate
+pip install rich
+pip freeze > requirements.txt
+
+# main.py
+from parser import parse_linha, contar_status
+from rich import print` },
+    { n:8, t:"Arquivos", c:["open / with","ler linha a linha","escrever","encoding"],
+      s:"O log agora vem de access.log no disco. Ler, processar, escrever resumo.txt.",
+      e:"Processar só as últimas 100 linhas sem carregar o arquivo inteiro na memória.",
+      p:"Funciona com um arquivo de 50 MB gerado por você (dica: loop de escrita).",
+      code:`entradas = []
+with open("access.log", encoding="utf-8") as f:
+    for linha in f:
+        linha = linha.strip()
+        if linha:
+            entradas.append(parse_linha(linha))
+
+with open("resumo.txt", "w", encoding="utf-8") as out:
+    for status, qtd in sorted(contar_status(entradas).items()):
+        out.write(f"{status}\\t{qtd}\\n")` },
+    { n:9, t:"JSON", c:["json.load / dump","json.loads / dumps","JSON ↔ dict","indent, sort_keys"],
+      s:"Salvar o resumo em resumo.json. Ler um kubectl get pods -o json real e listar nome + fase.",
+      e:"Gerar um JSON com {status: [rotas]} e validar abrindo em outro script.",
+      p:"Você sabe de cabeça o que json.dumps faz com um datetime (quebra) e por quê.",
+      code:`import json
+
+with open("pods.json") as f:          # kubectl get pods -A -o json > pods.json
+    dados = json.load(f)
+
+for item in dados["items"]:
+    nome = item["metadata"]["name"]
+    fase = item["status"]["phase"]
+    print(f"{nome:<40} {fase}")
+
+with open("resumo.json", "w") as out:
+    json.dump(contar_status(entradas), out, indent=2)` },
+    { n:10, t:"Exceções", c:["try / except / finally","exceções específicas","raise","except Exception as e"],
+      s:"Arquivo inexistente, linha malformada, JSON inválido: cada caso com mensagem clara e exit code.",
+      e:"Criar sua própria exceção LinhaInvalida e usá-la no parser.",
+      p:"O script nunca mostra traceback para o usuário; sempre uma mensagem e sys.exit(1).",
+      code:`import sys, json
+
+class LinhaInvalida(ValueError):
+    pass
+
+try:
+    with open(sys.argv[1]) as f:
+        cfg = json.load(f)
+except FileNotFoundError:
+    print(f"Arquivo não encontrado: {sys.argv[1]}"); sys.exit(1)
+except json.JSONDecodeError as e:
+    print(f"JSON inválido na linha {e.lineno}: {e.msg}"); sys.exit(1)` },
+    { n:"FDS", weekend:true, t:"CLI mínimo com sys.argv", c:["Junta D6–D10"],
+      s:"python main.py access.log resumo.json. Sem argumento: mostra uso e sai com código 2.",
+      e:"Flag --top N opcional.",
+      p:"Commit + README com exemplos de uso." },
+  ]},
+  { title:"Estrutura e qualidade", days:[
+    { n:11, t:"Classes", c:["class, __init__","atributos, métodos","self","__repr__"],
+      s:"class LogEntry com método is_error(). Substituir os dicts do parser.",
+      e:"Método para_dict() que devolve o formato antigo (compatibilidade).",
+      p:"print(entry) mostra algo legível, não <object at 0x...>.",
+      code:`class LogEntry:
+    def __init__(self, ip, metodo, rota, status):
+        self.ip, self.metodo, self.rota, self.status = ip, metodo, rota, status
+
+    def is_error(self) -> bool:
+        return self.status >= 500
+
+    def __repr__(self):
+        return f"LogEntry({self.metodo} {self.rota} -> {self.status})"` },
+    { n:12, t:"dataclasses e type hints", c:["@dataclass","list[str], dict[str,int]","Optional / |","frozen=True"],
+      s:"Reescrever LogEntry como dataclass. Anotar todas as funções do projeto.",
+      e:"Rodar mypy (pip install mypy) e zerar os erros.",
+      p:"mypy parser.py sem erros.",
+      code:`from dataclasses import dataclass
+
+@dataclass(frozen=True)
+class LogEntry:
+    ip: str
+    metodo: str
+    rota: str
+    status: int
+    tempo_ms: int | None = None
+
+    def is_error(self) -> bool:
+        return self.status >= 500` },
+    { n:13, t:"pytest", c:["test_*.py","assert","pytest.raises","fixtures simples"],
+      s:"Primeiro teste para parse_linha com linha válida e inválida.",
+      e:"Cobrir contar_status com lista vazia e com 3 status diferentes.",
+      p:"pytest -q verde. Você escreveu um teste que falhou antes de passar.",
+      code:`import pytest
+from parser import parse_linha, LinhaInvalida
+
+LINHA = '10.0.3.7 - - [29/Sep/2026:10:15:01 +0000] "GET /api HTTP/1.1" 502 178'
+
+def test_parse_status():
+    assert parse_linha(LINHA).status == 502
+
+def test_linha_invalida():
+    with pytest.raises(LinhaInvalida):
+        parse_linha("lixo")` },
+    { n:14, t:"pathlib, datetime, Counter", c:["Path / glob","datetime, timedelta, strptime","collections.Counter","defaultdict"],
+      s:"Trocar open() por Path. Parsear o timestamp do log. Counter substitui contar_status.",
+      e:"Agrupar requisições por minuto e achar o minuto com mais erros 5xx.",
+      p:"contar_status virou uma linha.",
+      code:`from pathlib import Path
+from collections import Counter
+from datetime import datetime
+
+for arq in Path("logs").glob("*.log"):
+    entradas = [parse_linha(l) for l in arq.read_text().splitlines() if l]
+    por_status = Counter(e.status for e in entradas)
+    print(arq.name, por_status.most_common(3))
+
+ts = datetime.strptime("29/Sep/2026:10:15:01", "%d/%b/%Y:%H:%M:%S")` },
+    { n:15, t:"ruff, estrutura de repo, commit limpo", c:["ruff check / format","pyproject.toml mínimo","src/ e tests/",".gitignore"],
+      s:"Formatar tudo, organizar em src/logtool/ e tests/. README com badges de teste.",
+      e:"Configurar pre-commit com ruff.",
+      p:"git log conta uma história; nenhum commit chamado 'fix'.",
+      code:`# pyproject.toml
+[project]
+name = "logtool"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = ["rich"]
+
+[tool.ruff]
+line-length = 100` },
+    { n:"FDS", weekend:true, t:"Projeto da Fase 1", c:["Tudo da fase + PyYAML"],
+      s:"CLI lê config.yaml (caminho do log, limiares, formato de saída), processa e gera relatório JSON e texto.",
+      e:"Teste de integração que roda o CLI inteiro contra um log de exemplo.",
+      p:"Repo público, README, testes verdes, tag v0.1.0." },
+  ]}
+]},
+{ id:2, name:"Automação e APIs", tag:"Fase 2 · Dias 22–42", intro:"Python como substituto do bash e como cliente de API. Termina com o primeiro serviço em FastAPI rodando no cluster.",
+  goal:"Webhook receiver do Alertmanager em FastAPI: recebe alerta, enriquece com dados do cluster, encaminha para Slack. Container, /health, /metrics, deploy.",
+  weeks:[
+  { title:"HTTP como cliente", days:[
+    { n:16, t:"httpx básico", c:["get / post","status_code, .json()","headers, params","timeout obrigatório"], s:"Listar seus repos na API do GitHub com token via variável de ambiente.", e:"Listar PRs abertos há mais de 7 dias.", p:"Nenhuma chamada sem timeout." },
+    { n:17, t:"Autenticação e paginação", c:["Bearer / Basic","Link header","page/per_page","cursor"], s:"Percorrer todas as páginas de issues de um repo grande.", e:"Função genérica paginar(url) que devolve tudo como lista.", p:"Funciona com repo de 500+ issues." },
+    { n:18, t:"Retries e backoff", c:["raise_for_status","tenacity","exponencial + jitter","idempotência"], s:"Cliente que tolera 429 e 503 da API.", e:"Log de cada tentativa com tempo de espera.", p:"Testado contra httpbin.org/status/503." },
+    { n:19, t:"Prometheus API", c:["/api/v1/query","/api/v1/query_range","result types","vector vs matrix"], s:"Buscar up == 0 e listar alvos fora.", e:"Taxa de erro 5xx dos últimos 30 min por serviço.", p:"Saída ordenada por taxa." },
+    { n:20, t:"Kubernetes client", c:["config.load_kube_config","CoreV1Api, AppsV1Api","list_pod_for_all_namespaces","field/label selectors"], s:"Deployments sem resources.limits, por namespace.", e:"Pods com mais de 5 restarts nas últimas 24h.", p:"Roda contra kind ou minikube local." },
+    { n:"FDS", weekend:true, t:"Relatório de higiene do cluster", c:["D16–D20"], s:"Um script que junta GitHub, Prometheus e Kubernetes num relatório Markdown.", e:"Postar no Slack via webhook.", p:"Commit + cron local rodando de manhã." },
+  ]},
+  { title:"Shell substituído", days:[
+    { n:21, t:"subprocess", c:["run(capture_output=True)","check=True","shell=False sempre","stdout/stderr"], s:"Wrapper de kubectl que devolve JSON parseado.", e:"Rodar terraform plan e extrair o número de mudanças.", p:"Erro do comando vira exceção Python com mensagem." },
+    { n:22, t:"argparse / typer", c:["subcomandos","tipos e defaults","--help automático","exit codes"], s:"CLI: infra pods --ns prod --restarts 5.", e:"Subcomando infra report que gera o relatório do fim de semana.", p:"--help bem escrito." },
+    { n:23, t:"logging", c:["logging.getLogger","níveis","formato JSON","handler para arquivo"], s:"Trocar todo print por logger. Logs em JSON para o stdout.", e:"LOG_LEVEL via ambiente.", p:"Nenhum print() no projeto." },
+    { n:24, t:"Ambiente e segredos", c:["os.environ","python-dotenv","pydantic-settings","nunca commitar .env"], s:"Classe Settings com validação dos tokens obrigatórios.", e:"Erro claro quando falta variável.", p:"git grep de token não acha nada." },
+    { n:25, t:"asyncio", c:["async / await","asyncio.gather","httpx.AsyncClient","semaphore"], s:"Consultar 20 endpoints /health em paralelo.", e:"Limitar concorrência a 5 e medir tempo total.", p:"Versão async 5x mais rápida que a sequencial." },
+    { n:"FDS", weekend:true, t:"Empacotar a CLI", c:["pyproject, entry points","pipx install","ruff, mypy, pytest no CI"], s:"pipx install . e o comando infra existe no PATH.", e:"GitHub Actions rodando testes em push.", p:"Badge verde no README." },
+  ]},
+  { title:"Primeiro serviço", days:[
+    { n:26, t:"FastAPI básico", c:["@app.get / post","Pydantic models","uvicorn","/docs"], s:"POST /alerts que recebe JSON do Alertmanager e loga.", e:"Validar o payload; 422 se faltar campo.", p:"curl com payload real do Alertmanager funciona." },
+    { n:27, t:"Health, readiness, metrics", c:["/healthz vs /readyz","prometheus_client","Counter, Histogram","lifespan"], s:"Endpoints de saúde e contador de alertas recebidos.", e:"Histograma de latência do handler.", p:"curl /metrics mostra suas métricas." },
+    { n:28, t:"Integrações", c:["Slack Blocks","enriquecer com k8s","BackgroundTasks","idempotência por fingerprint"], s:"Alerta chega, busca eventos do pod, posta no Slack com contexto.", e:"Não repostar o mesmo fingerprint em 10 min.", p:"Mensagem no Slack útil para quem está de plantão." },
+    { n:29, t:"Container", c:["Dockerfile multi-stage","imagem slim","usuário não-root","HEALTHCHECK"], s:"Imagem < 200 MB rodando o serviço.", e:"docker scan sem crítico.", p:"Imagem no ghcr.io." },
+    { n:30, t:"Deploy no cluster", c:["Deployment, Service","probes","resources","ServiceMonitor"], s:"Manifests ou Helm chart mínimo. Alertmanager apontando para o serviço.", e:"Dashboard no Grafana com as suas métricas.", p:"Alerta de teste chega no Slack passando pelo seu serviço." },
+    { n:"FDS", weekend:true, t:"Projeto da Fase 2", c:["Tudo"], s:"Webhook receiver completo, testado, documentado, rodando.", e:"Runbook de 1 página: como operar, como debugar.", p:"Tag v1.0.0. Vídeo curto mostrando o fluxo." },
+  ]}
+]},
+{ id:3, name:"Agentes de IA", tag:"Fase 3 · Dias 43–63", intro:"O webhook receiver ganha um cérebro: um agente que lê o alerta, consulta logs e métricas por ferramentas, e propõe uma hipótese antes de acordar alguém.",
+  goal:"Agente de investigação de incidentes + MCP server expondo query_prometheus, get_k8s_events e describe_pod. Com evals.",
+  weeks:[
+  { title:"Falando com um LLM", days:[
+    { n:31, t:"SDK e primeira chamada", c:["anthropic / openai SDK","system vs user","max_tokens, temperature","custo por token"], s:"Resumir um alerta do Alertmanager em uma frase para o Slack.", e:"Comparar 3 prompts e escolher pelo resultado.", p:"Você sabe quanto custou cada chamada." },
+    { n:32, t:"Saída estruturada", c:["JSON mode","Pydantic para validar","retry em JSON inválido","enums"], s:"Classificar alerta em {severidade, componente, ação_sugerida}.", e:"Testar com 10 alertas reais e medir acertos.", p:"Nenhum JSON inválido passa." },
+    { n:33, t:"Prompting para infra", c:["few-shot","contexto de runbook","limites do modelo","alucinação"], s:"Dar ao modelo o runbook e pedir o próximo passo.", e:"Caso em que o modelo inventa comando; detectar e bloquear.", p:"Lista escrita do que o modelo não pode decidir sozinho." },
+    { n:34, t:"Tool calling", c:["definir tools em JSON schema","loop chamada → resultado","tool_use / tool_result","parar quando não há tool"], s:"Tool get_pod_status que o modelo pode chamar.", e:"Segunda tool query_prometheus.", p:"Loop de agente escrito à mão, sem framework." },
+    { n:35, t:"Loop de agente", c:["estado da conversa","limite de passos","custo acumulado","log de decisões"], s:"Agente investiga: lê alerta, chama 2–3 tools, escreve hipótese.", e:"Limite de 8 passos e USD 0,20 por investigação.", p:"Transcript de cada investigação salvo em JSON." },
+    { n:"FDS", weekend:true, t:"Integrar ao webhook", c:["D31–D35"], s:"Alerta chega → agente investiga → Slack recebe hipótese + evidências.", e:"Botão 'foi útil?' no Slack gravando feedback.", p:"Rodando no cluster." },
+  ]},
+  { title:"MCP e memória", days:[
+    { n:36, t:"MCP server", c:["mcp SDK","@tool","stdio transport","testar com Claude Desktop / Code"], s:"Servidor com query_prometheus e get_k8s_events.", e:"Adicionar describe_pod e investigate_logs (Loki).", p:"Claude Code consegue usar suas tools." },
+    { n:37, t:"Segurança das tools", c:["read-only por padrão","allowlist de namespaces","timeouts","sem shell arbitrário"], s:"Auditar cada tool: o que ela pode fazer de pior?", e:"Tool de escrita (restart pod) com confirmação humana.", p:"Documento de threat model de 1 página." },
+    { n:38, t:"Memória e contexto", c:["janela de contexto","resumir histórico","embeddings básicos","sqlite"], s:"Guardar investigações passadas e buscar similares.", e:"Agente cita incidente parecido de semana passada.", p:"Busca devolve o incidente certo em 8 de 10 casos." },
+    { n:39, t:"Evals", c:["dataset de casos","métrica simples","LLM-as-judge com cuidado","regressão"], s:"20 alertas com hipótese esperada. Medir acerto do agente.", e:"Rodar evals no CI.", p:"Número de acerto no README." },
+    { n:40, t:"Observabilidade do agente", c:["tracing por passo","tokens e latência","métricas Prometheus","dashboard"], s:"Cada investigação vira spans + métricas.", e:"Alerta se custo diário passar de X.", p:"Dashboard do agente ao lado do dashboard do serviço." },
+    { n:"FDS", weekend:true, t:"Projeto da Fase 3", c:["Tudo"], s:"Agente + MCP server publicados, com evals e docs.", e:"Vídeo de 10 min explicando arquitetura.", p:"Tag v1.0.0 nos dois repos." },
+  ]},
+  { title:"Refino", days:[
+    { n:41, t:"Streaming e UX", c:["stream=True","Slack thread updates","cancelamento","timeouts"], s:"Slack mostra progresso da investigação passo a passo.", e:"Cancelar investigação em andamento.", p:"Nenhuma investigação trava para sempre." },
+    { n:42, t:"Custos e modelos", c:["modelo pequeno para classificar","grande para investigar","cache de prompt","budget"], s:"Roteamento por severidade.", e:"Reduzir custo mensal em 50% sem cair acerto.", p:"Planilha de custo antes/depois." },
+    { n:43, t:"Testes de agente", c:["mock de LLM","mock de tools","testes determinísticos","snapshot"], s:"Suite que roda sem chamar API real.", e:"Cobrir o loop de tool calling.", p:"pytest verde offline." },
+    { n:44, t:"Revisão de código com IA", c:["prompt de revisão","checklists","o que ignorar","diff-only"], s:"Script que revisa um PR com o modelo e comenta.", e:"Rodar no seu próprio repo.", p:"Uma sugestão útil que você aceitou, uma que rejeitou e por quê." },
+    { n:45, t:"Documentação viva", c:["docstrings","mkdocs","ADRs","diagramas em Mermaid"], s:"Site de docs dos dois projetos.", e:"ADR explicando por que tool calling manual e não framework.", p:"Docs publicadas no GitHub Pages." },
+    { n:"FDS", weekend:true, t:"Retrospectiva", c:["Fases 1–3"], s:"O que refazer, o que manter. Lista de dívidas técnicas.", e:"Issues abertas para a Fase 4.", p:"Post no LinkedIn / vídeo no canal." },
+  ]}
+]},
+{ id:4, name:"Engenharia e fundamentos", tag:"Fase 4 · Dias 64–84", intro:"Agora que tem três projetos reais, os fundamentos têm onde se aplicar. Estruturas de dados, design e testes de integração, usados para refatorar o que você mesmo escreveu.",
+  goal:"Os três projetos unificados num pacote publicável: infra-toolkit. CLI + serviço + agente, um repo, um CI, release no PyPI ou ghcr.",
+  weeks:[
+  { title:"Python idiomático", days:[
+    { n:46, t:"Geradores e iteradores", c:["yield","lazy evaluation","itertools","memória"], s:"Ler log de 5 GB sem estourar memória.", e:"Pipeline de geradores: ler → parsear → filtrar → contar.", p:"Uso de memória constante (medir com tracemalloc)." },
+    { n:47, t:"Decorators", c:["funções como valores","@wraps","retry como decorator","timing"], s:"@retry e @timed usados nas chamadas de API.", e:"@cache com TTL.", p:"Você explica decorator para alguém sem usar a palavra 'mágica'." },
+    { n:48, t:"Context managers", c:["with","__enter__/__exit__","contextlib","recursos"], s:"Context manager para port-forward do kubectl.", e:"Um para lock de arquivo.", p:"Port-forward sempre fecha, mesmo com exceção." },
+    { n:49, t:"Estruturas de dados aplicadas", c:["Big-O na prática","set vs list para busca","deque, heapq","quando importa"], s:"Deduplicar 1M de IPs: list vs set, cronometrado.", e:"Top-K de rotas lentas com heapq.", p:"Tabela de tempos no README." },
+    { n:50, t:"Concorrência: threads vs async vs processos", c:["GIL","ThreadPoolExecutor","ProcessPoolExecutor","quando usar cada"], s:"Mesma tarefa nas três versões, medida.", e:"Escolher a certa para cada script dos projetos.", p:"Regra de bolso escrita em 3 linhas." },
+    { n:"FDS", weekend:true, t:"Refatorar Fase 1 com tudo isso", c:["D46–D50"], s:"logtool virando pipeline de geradores com decorators.", e:"Benchmark antes/depois.", p:"PR com descrição de engenheiro sênior." },
+  ]},
+  { title:"Design de software", days:[
+    { n:51, t:"Separação de camadas", c:["domínio / infra / interface","dependências apontam para dentro","protocolos (typing.Protocol)","testabilidade"], s:"Desenhar as camadas do webhook receiver.", e:"Trocar Slack por Teams sem tocar no domínio.", p:"Diagrama de dependências sem ciclos." },
+    { n:52, t:"Injeção de dependência", c:["passar clientes por parâmetro","fakes vs mocks","fábricas","sem framework"], s:"Tools do agente recebem clientes injetados.", e:"Teste do agente com fake de Prometheus.", p:"Nenhum import de rede dentro do domínio." },
+    { n:53, t:"Testes de integração", c:["testcontainers","pytest markers","fixtures de cluster (kind)","dados de teste"], s:"Subir Prometheus em container e testar a tool real.", e:"Teste end-to-end do webhook com kind.", p:"CI separa unit e integration." },
+    { n:54, t:"Tratamento de erros em serviços", c:["erros de domínio vs infra","circuit breaker","graceful shutdown","timeouts em cascata"], s:"Mapa de falhas do serviço: o que acontece se X cair.", e:"Implementar circuit breaker para o Slack.", p:"SIGTERM termina em < 10s sem perder alerta." },
+    { n:55, t:"CI/CD do pacote", c:["matrix de versões","cache de deps","release por tag","SBOM e assinatura"], s:"Pipeline completo: lint, test, build, publish.", e:"Release automática ao criar tag.", p:"v-tag → imagem + pacote em 5 min." },
+    { n:"FDS", weekend:true, t:"Unificar repos", c:["D51–D55"], s:"Monorepo infra-toolkit com pacotes cli, service, agent.", e:"Um pyproject por pacote, workspace com uv.", p:"Tudo instala com um comando." },
+  ]},
+  { title:"Fechamento", days:[
+    { n:56, t:"Segurança", c:["bandit, pip-audit","segredos","least privilege no RBAC","supply chain"], s:"Auditoria dos três pacotes.", e:"Corrigir tudo que for high.", p:"Zero high no scan." },
+    { n:57, t:"Performance", c:["cProfile","py-spy","onde otimizar","quando não otimizar"], s:"Profile do serviço sob carga (locust).", e:"Um gargalo real encontrado e corrigido.", p:"p99 antes/depois no README." },
+    { n:58, t:"Documentação final", c:["README por pacote","arquitetura","runbooks","changelog"], s:"Docs completas do toolkit.", e:"Onboarding: alguém instala e roda em 15 min seguindo só o README.", p:"Testado com uma pessoa de verdade." },
+    { n:59, t:"Release", c:["semver","PyPI ou ghcr","release notes","tag assinada"], s:"infra-toolkit 1.0.0.", e:"Anunciar no LinkedIn e no canal.", p:"Publicado." },
+    { n:60, t:"Próximos passos", c:["Go para o que Python não faz bem","o que estudar depois","plano de manutenção"], s:"Lista do que Python resolveu e do que não resolveu no seu trabalho.", e:"Escolher a segunda linguagem só se um problema concreto pedir.", p:"Plano dos próximos 3 meses escrito." },
+    { n:"FDS", weekend:true, t:"Projeto final", c:["Tudo"], s:"Apresentação do toolkit: demo de 15 min, do alerta ao Slack com hipótese do agente.", e:"Vídeo publicado.", p:"Você consegue explicar cada linha do que construiu." },
+  ]}
+]}
+];
+
+// ---- aulas (teoria) — Fase 1
+const LESSONS = {
+f1w1d1:{min:8,html:`
+<h4>O que você precisa entender hoje</h4>
+<p>Python lê o arquivo de cima para baixo, uma linha por vez. Uma <b>variável</b> é um nome colado num valor: <code>instancias = 4</code> guarda o número 4 sob o nome <code>instancias</code>. Não existe declaração de tipo; o tipo vem do valor. Os quatro tipos que você usa 90% do tempo:</p>
+<ul>
+<li><code>int</code> — inteiros: <code>4</code>, <code>730</code>, <code>-1</code>. Contagens, portas, réplicas.</li>
+<li><code>float</code> — decimais: <code>0.096</code>, <code>99.9</code>. Preços, percentuais, latência. Divisão <code>/</code> sempre devolve float.</li>
+<li><code>str</code> — texto entre aspas: <code>"m5.large"</code>. Nomes, logs, JSON antes de parsear.</li>
+<li><code>bool</code> — <code>True</code> ou <code>False</code>. Resultado de comparações.</li>
+</ul>
+<p>Descubra o tipo com <code>type(x)</code>. Converta com <code>int("42")</code>, <code>float("0.5")</code>, <code>str(730)</code>. Tudo que vem de fora (arquivo, terminal, API) chega como <code>str</code>; converter é sempre o primeiro passo.</p>
+<h4>f-strings</h4>
+<p>Prefixe a string com <code>f</code> e coloque expressões entre chaves. Formate com dois-pontos: <code>{custo:.2f}</code> duas casas, <code>{nome:&lt;14}</code> alinha à esquerda em 14 colunas, <code>{taxa:.1%}</code> percentual.</p>
+<pre><code>preco = 0.096
+print(f"USD {preco * 730:.2f}/mês")   # USD 70.08/mês
+print(f"{'nome':&lt;10}|{'cpu':&gt;6}")     # colunas alinhadas</code></pre>
+<h4>Como praticar</h4>
+<p>Abra <code>python -i</code> (ou só <code>python</code>) e digite as expressões. O REPL responde na hora; é o jeito mais rápido de testar uma dúvida. Salve o script do dia num arquivo <code>.py</code> e rode com <code>python dia01.py</code>.</p>
+<div class="warn"><h4>Erros comuns</h4><ul>
+<li><code>"4" * 2</code> é <code>"44"</code>, não 8. String vezes inteiro repete o texto.</li>
+<li><code>"4" + 2</code> quebra com <code>TypeError</code>. Converta antes: <code>int("4") + 2</code>.</li>
+<li><code>0.1 + 0.2 == 0.3</code> é <code>False</code>. Float tem imprecisão; para dinheiro, arredonde na saída com <code>:.2f</code> ou use <code>decimal</code> mais tarde.</li>
+</ul></div>`},
+f1w1d2:{min:9,html:`
+<h4>Strings são sequências</h4>
+<p>Uma string é uma lista de caracteres que você não pode alterar (imutável). Todo método de string devolve uma <b>nova</b> string; a original não muda. Por isso <code>linha.strip()</code> sozinho não faz nada: você precisa de <code>linha = linha.strip()</code>.</p>
+<h4>Os cinco métodos que resolvem quase tudo em infra</h4>
+<ul>
+<li><code>split(sep)</code> — quebra em lista. <code>"a b c".split(" ")</code> → <code>["a","b","c"]</code>. Sem argumento, quebra em qualquer espaço em branco e ignora repetidos.</li>
+<li><code>strip()</code> — tira espaços e quebras de linha das pontas. Toda linha lida de arquivo vem com <code>\\n</code>; strip antes de tudo.</li>
+<li><code>startswith("ERROR")</code> / <code>endswith(".log")</code> — filtros rápidos, devolvem bool.</li>
+<li><code>replace(velho, novo)</code> — substituição simples, sem regex.</li>
+<li><code>in</code> — <code>"502" in linha</code> testa se contém.</li>
+</ul>
+<h4>Fatiamento</h4>
+<p><code>s[inicio:fim]</code> pega do índice <code>inicio</code> até <code>fim</code> exclusivo. <code>s[:4]</code> primeiros quatro, <code>s[-3:]</code> últimos três, <code>s[::-1]</code> invertido. Índices começam em zero.</p>
+<pre><code>linha = '10.0.3.7 - - [29/Sep/2026:10:15:01 +0000] "GET /api HTTP/1.1" 502 178'
+partes = linha.split('"')     # aspas dividem em 3 pedaços
+print(partes[0].split(" ")[0])   # 10.0.3.7
+print(partes[1])                 # GET /api HTTP/1.1
+print(partes[2].split()[0])      # 502</code></pre>
+<p>Estratégia para parsear log: ache um separador confiável (aqui, as aspas), quebre nele, depois quebre cada pedaço em espaços. Regex fica para a semana 2 da Fase 2; até lá, split resolve.</p>
+<div class="warn"><h4>Erros comuns</h4><ul>
+<li>Esquecer que <code>split</code> devolve lista: <code>linha.split(" ")[0]</code>, não <code>linha.split(" ")</code>.</li>
+<li><code>IndexError</code> quando a linha tem menos pedaços que o esperado. Amanhã e no dia 10 você aprende a se proteger.</li>
+<li>Comparar com maiúscula/minúscula diferente: normalize com <code>.lower()</code> antes.</li>
+</ul></div>`},
+f1w1d3:{min:9,html:`
+<h4>Lista: a coleção ordenada e mutável</h4>
+<p><code>pods = ["api", "worker", "cache"]</code>. Acesse por índice <code>pods[0]</code>, o último com <code>pods[-1]</code>. Tamanho com <code>len(pods)</code>. Mutável: <code>append</code> adiciona no fim, <code>pop()</code> remove e devolve o último, <code>remove(x)</code> tira pelo valor, <code>extend(outra)</code> junta.</p>
+<h4>Tupla: a lista que não muda</h4>
+<p><code>("api-7d9f", 14, "prod")</code>. Use quando um "registro" tem campos fixos e você não quer que alguém altere sem querer. O ganho real é o <b>desempacotamento</b>: <code>nome, restarts, ns = pod</code> coloca cada campo numa variável. Funciona em <code>for</code> também.</p>
+<h4>Ordenar</h4>
+<p><code>sorted(lista)</code> devolve uma nova lista ordenada; <code>lista.sort()</code> ordena no lugar e devolve <code>None</code>. Para ordenar por um campo, passe <code>key=</code>: uma função que recebe o item e devolve o valor de comparação. <code>lambda p: p[1]</code> é uma função de uma linha que devolve o segundo campo.</p>
+<pre><code>pods = [("api-7d9f", 14, "prod"), ("worker-2c1a", 0, "prod"), ("cache-9x2k", 27, "prod")]
+
+por_restart = sorted(pods, key=lambda p: p[1], reverse=True)
+for nome, restarts, ns in por_restart[:2]:
+    print(nome, restarts)
+
+nomes = [p[0] for p in pods]          # list comprehension: nova lista a partir de outra
+prod = [p for p in pods if p[2] == "prod"]</code></pre>
+<p>A <b>list comprehension</b> <code>[expr for x in lista if cond]</code> é a forma idiomática de transformar e filtrar. Você vai usar todo dia.</p>
+<div class="warn"><h4>Erros comuns</h4><ul>
+<li><code>x = lista.sort()</code> deixa <code>x</code> como <code>None</code>. Use <code>sorted()</code> quando quiser o resultado.</li>
+<li><code>b = a</code> não copia a lista; as duas variáveis apontam para a mesma. Copie com <code>b = a.copy()</code> ou <code>list(a)</code>.</li>
+<li>Tupla de um elemento precisa de vírgula: <code>(42,)</code>. <code>(42)</code> é só o número.</li>
+</ul></div>`},
+f1w1d4:{min:12,html:`
+<h4>Por que este é o dia mais importante</h4>
+<p>Todo JSON que uma API devolve, todo YAML do Kubernetes, todo payload de webhook vira um <b>dicionário</b> em Python. Se dicionário for natural para você, o resto da carreira em Python é detalhe.</p>
+<h4>O modelo mental</h4>
+<p>Um dict mapeia <b>chave → valor</b>. Chaves são geralmente strings; valores podem ser qualquer coisa, inclusive outro dict ou uma lista. Acesse com colchetes: <code>cfg["porta"]</code>. Adicione ou altere atribuindo: <code>cfg["porta"] = 8080</code>. Remova com <code>del cfg["porta"]</code>. Teste se existe com <code>"porta" in cfg</code>.</p>
+<h4>[ ] versus .get( )</h4>
+<p><code>cfg["x"]</code> quebra com <code>KeyError</code> se a chave não existe. <code>cfg.get("x")</code> devolve <code>None</code>; <code>cfg.get("x", padrao)</code> devolve o padrão. Regra: use colchetes quando a chave <i>tem</i> de existir (o erro é informação útil); use <code>get</code> para campos opcionais, como <code>annotations</code> num manifest.</p>
+<h4>Percorrer</h4>
+<pre><code>limites = {"cpu": "500m", "memory": "512Mi"}
+for chave, valor in limites.items():
+    print(f"{chave} = {valor}")
+
+for chave in limites:            # só chaves
+    ...
+list(limites.values())            # só valores</code></pre>
+<h4>Aninhamento é o normal</h4>
+<p>Um Deployment é dict dentro de dict dentro de lista dentro de dict. Você navega encadeando: <code>d["spec"]["template"]["spec"]["containers"][0]["image"]</code>. Leia da esquerda para a direita, um nível por vez, exatamente como o caminho no YAML. Quando o caminho fica longo, guarde os níveis em variáveis intermediárias: <code>containers = d["spec"]["template"]["spec"]["containers"]</code>.</p>
+<pre><code>deploy = {"metadata": {"name": "api", "labels": {"app": "api"}},
+          "spec": {"replicas": 3,
+                   "template": {"spec": {"containers": [{"name": "api", "image": "acme/api:v2.3.0"}]}}}}
+
+container = deploy["spec"]["template"]["spec"]["containers"][0]
+container["image"] = "acme/api:v2.3.1"           # altera no lugar
+print(deploy["metadata"].get("annotations", {}))  # {} — campo opcional</code></pre>
+<div class="warn"><h4>Erros comuns</h4><ul>
+<li><code>KeyError: 'annotations'</code> — campo opcional acessado com colchetes. Use <code>get</code>.</li>
+<li>Esquecer o <code>[0]</code> quando o valor é uma lista (<code>containers</code> é lista, não dict).</li>
+<li>Alterar um dict durante o <code>for</code> sobre ele: <code>RuntimeError</code>. Itere sobre <code>list(d.keys())</code> se precisar mudar.</li>
+</ul></div>`},
+f1w1d5:{min:9,html:`
+<h4>if / elif / else</h4>
+<p>O bloco depende da <b>indentação</b>: quatro espaços marcam o que pertence ao <code>if</code>. Python testa as condições em ordem e executa o primeiro bloco verdadeiro; <code>elif</code> encadeia, <code>else</code> é o resto. Comparações: <code>==</code>, <code>!=</code>, <code>&lt;</code>, <code>&gt;=</code>. Combine com <code>and</code>, <code>or</code>, <code>not</code>. Encadeie intervalos: <code>0 &lt;= cpu &lt;= 100</code>.</p>
+<h4>Truthiness</h4>
+<p>Em um <code>if</code>, estes valores contam como falso: <code>0</code>, <code>""</code>, <code>[]</code>, <code>{}</code>, <code>None</code>, <code>False</code>. Por isso <code>if lista:</code> testa "não está vazia" e <code>if not erros:</code> testa "sem erros". É idiomático; use.</p>
+<h4>for e while</h4>
+<p><code>for x in colecao:</code> percorre lista, tupla, dict, string, arquivo. <code>range(n)</code> gera 0..n-1. <code>enumerate(lista)</code> dá índice e item juntos. <code>while cond:</code> repete enquanto verdadeiro; use quando não sabe quantas vezes (polling, retry). <code>break</code> sai do loop; <code>continue</code> pula para a próxima iteração.</p>
+<pre><code>for i, (nome, restarts, ns) in enumerate(pods, start=1):
+    if ns != "prod":
+        continue                      # ignora não-prod
+    if restarts &gt;= 10:
+        print(f"{i}. {nome}: failed")
+        break                         # para no primeiro crítico
+    estado = "healthy" if restarts == 0 else "degraded"   # if de uma linha
+    print(f"{i}. {nome}: {estado}")</code></pre>
+<p>O <code>for</code> aceita um <code>else</code> que roda só se o loop terminou sem <code>break</code>. Útil para "procurei e não achei".</p>
+<div class="warn"><h4>Erros comuns</h4><ul>
+<li><code>=</code> (atribuição) no lugar de <code>==</code> (comparação). Python dá <code>SyntaxError</code>; leia a mensagem.</li>
+<li>Misturar tabs e espaços. Configure o editor para 4 espaços.</li>
+<li><code>while True</code> sem <code>break</code> nem <code>sleep</code>: 100% de CPU. Todo loop infinito precisa de saída e de pausa.</li>
+</ul></div>`},
+f1w2d6:{min:10,html:`
+<h4>Função: dar nome a um pedaço de lógica</h4>
+<p><code>def nome(parametros):</code> define; o corpo indentado roda quando você <b>chama</b> <code>nome(argumentos)</code>. <code>return</code> devolve um valor e encerra a função. Sem <code>return</code>, a função devolve <code>None</code>. Uma função deve fazer uma coisa e ter um nome que diga qual.</p>
+<h4>Parâmetros</h4>
+<p>Posicionais na ordem: <code>parse_linha(linha)</code>. Com valor padrão: <code>def top_rotas(entradas, n=5)</code> permite chamar com ou sem <code>n</code>. Nomeados na chamada: <code>top_rotas(entradas, n=10)</code>, mais legível quando há vários. Type hints (<code>linha: str</code>, <code>-&gt; dict</code>) não são checados em tempo de execução, mas documentam e alimentam o editor.</p>
+<h4>Docstring</h4>
+<p>A string logo abaixo do <code>def</code> é a documentação. Uma linha dizendo o que a função faz e o que devolve. <code>help(parse_linha)</code> mostra.</p>
+<h4>Escopo</h4>
+<p>Variáveis criadas dentro da função morrem quando ela termina. A função enxerga variáveis globais, mas não deveria alterá-las: passe tudo por parâmetro e devolva por <code>return</code>. Isso é o que torna a função testável no dia 13.</p>
+<pre><code>def parse_linha(linha: str) -&gt; dict:
+    """Converte uma linha do nginx em dict com ip, metodo, rota e status."""
+    partes = linha.split('"')
+    metodo, rota, _ = partes[1].split(" ")
+    return {"ip": partes[0].split(" ")[0], "metodo": metodo,
+            "rota": rota, "status": int(partes[2].split()[0])}
+
+def top_rotas(entradas: list, n: int = 5) -&gt; list:
+    contagem = {}
+    for e in entradas:
+        contagem[e["rota"]] = contagem.get(e["rota"], 0) + 1
+    return sorted(contagem.items(), key=lambda kv: kv[1], reverse=True)[:n]</code></pre>
+<p>Refatorar = mover código para funções sem mudar o comportamento. Faça um passo por vez e rode o script depois de cada mudança.</p>
+<div class="warn"><h4>Erros comuns</h4><ul>
+<li>Esquecer o <code>return</code> e receber <code>None</code>.</li>
+<li>Valor padrão mutável: <code>def f(itens=[])</code> compartilha a mesma lista entre chamadas. Use <code>None</code> e crie dentro.</li>
+<li>Função que imprime <i>e</i> calcula. Separe: uma calcula e devolve, outra imprime.</li>
+</ul></div>`},
+f1w2d7:{min:8,html:`
+<h4>Módulo = arquivo .py</h4>
+<p>Qualquer arquivo Python é importável. Se <code>parser.py</code> está na mesma pasta que <code>main.py</code>, então <code>from parser import parse_linha</code> funciona. <code>import parser</code> também, e aí você chama <code>parser.parse_linha()</code>. A biblioteca padrão vem do mesmo jeito: <code>import json</code>, <code>from pathlib import Path</code>.</p>
+<p>Quando um módulo é importado, todo o código dele roda. Por isso o código que "executa" fica protegido:</p>
+<pre><code>if __name__ == "__main__":
+    main()</code></pre>
+<p><code>__name__</code> é <code>"__main__"</code> só quando o arquivo é executado diretamente. Importado, o bloco não roda.</p>
+<h4>venv: um Python por projeto</h4>
+<p>Instalar pacotes no Python do sistema mistura versões entre projetos e quebra ferramentas do SO. O <b>ambiente virtual</b> é uma pasta com um Python isolado e seus próprios pacotes:</p>
+<pre><code>python -m venv .venv
+source .venv/bin/activate      # Windows: .venv\\Scripts\\activate
+pip install rich
+pip freeze &gt; requirements.txt   # trava as versões
+pip install -r requirements.txt # recria em outra máquina</code></pre>
+<p>Ative o venv em todo terminal antes de rodar o projeto. O prompt mostra <code>(.venv)</code>. Adicione <code>.venv/</code> ao <code>.gitignore</code>; commite o <code>requirements.txt</code>.</p>
+<p>Você vai encontrar <code>uv</code> e <code>poetry</code> por aí. São mais rápidos e mais completos; no dia 15 troca-se para <code>pyproject.toml</code>. Hoje, venv + pip: é o que roda em qualquer imagem Docker sem instalar nada.</p>
+<div class="warn"><h4>Erros comuns</h4><ul>
+<li><code>ModuleNotFoundError</code> logo após <code>pip install</code>: o pip instalou em outro Python. Confira com <code>which python</code> e <code>which pip</code>; devem apontar para <code>.venv</code>.</li>
+<li>Nomear seu arquivo igual a um módulo padrão (<code>json.py</code>, <code>logging.py</code>): o import pega o seu arquivo e tudo quebra. <code>parser</code> também existe na stdlib; use <code>logparser.py</code> se der conflito.</li>
+</ul></div>`},
+f1w2d8:{min:8,html:`
+<h4>Ler e escrever com with</h4>
+<p><code>open(caminho, modo, encoding="utf-8")</code> abre um arquivo. Modos: <code>"r"</code> ler (padrão), <code>"w"</code> escrever apagando o que havia, <code>"a"</code> acrescentar. Use sempre <code>with</code>: ele fecha o arquivo ao sair do bloco, mesmo se der erro. Sem <code>with</code>, você esquece o <code>close()</code> e o processo acumula descritores abertos.</p>
+<h4>Linha a linha, não tudo de uma vez</h4>
+<p><code>f.read()</code> carrega o arquivo inteiro na memória; num log de 5 GB, isso mata o pod. Iterar sobre o objeto de arquivo (<code>for linha in f</code>) lê uma linha por vez. É o padrão para logs. <code>f.readlines()</code> devolve lista de todas as linhas; evite para arquivos grandes.</p>
+<pre><code>entradas = []
+with open("access.log", encoding="utf-8") as f:
+    for linha in f:
+        linha = linha.strip()
+        if not linha:
+            continue
+        entradas.append(parse_linha(linha))
+
+with open("resumo.txt", "w", encoding="utf-8") as out:
+    out.write(f"total\\t{len(entradas)}\\n")   # write não põe \\n sozinho</code></pre>
+<h4>Encoding</h4>
+<p>Declare <code>encoding="utf-8"</code> sempre. O padrão depende do sistema; um log com acento gerado num Windows quebra no Linux se você não fixar.</p>
+<h4>Últimas N linhas sem carregar tudo</h4>
+<p><code>collections.deque(f, maxlen=100)</code> percorre o arquivo guardando só as 100 últimas. Você vai ver <code>deque</code> de novo no dia 14; por hoje, é a solução do exercício.</p>
+<div class="warn"><h4>Erros comuns</h4><ul>
+<li>Abrir com <code>"w"</code> achando que é append: apagou o arquivo.</li>
+<li>Caminho relativo depende de onde você <i>executa</i> o script, não de onde ele está. O dia 14 resolve com <code>pathlib</code>.</li>
+<li>Escrever dentro do mesmo arquivo que está lendo.</li>
+</ul></div>`},
+f1w2d9:{min:8,html:`
+<h4>JSON é dict com outra roupa</h4>
+<p>JSON é texto. Python dict é estrutura na memória. O módulo <code>json</code> converte entre os dois: <code>json.load(arquivo)</code> e <code>json.loads(string)</code> transformam texto em dict/lista; <code>json.dump(obj, arquivo)</code> e <code>json.dumps(obj)</code> fazem o inverso. O <b>s</b> no final significa <i>string</i>.</p>
+<p>Mapeamento: objeto JSON → <code>dict</code>, array → <code>list</code>, string → <code>str</code>, número → <code>int</code>/<code>float</code>, <code>true/false</code> → <code>True/False</code>, <code>null</code> → <code>None</code>. Só isso. Datas viram string; você converte com <code>datetime</code> no dia 14.</p>
+<pre><code>import json
+
+with open("pods.json") as f:            # kubectl get pods -A -o json &gt; pods.json
+    dados = json.load(f)
+
+for item in dados["items"]:
+    print(item["metadata"]["namespace"], item["metadata"]["name"], item["status"]["phase"])
+
+resumo = {"total": len(dados["items"]), "por_fase": {}}
+for item in dados["items"]:
+    fase = item["status"]["phase"]
+    resumo["por_fase"][fase] = resumo["por_fase"].get(fase, 0) + 1
+
+with open("resumo.json", "w") as out:
+    json.dump(resumo, out, indent=2, sort_keys=True)</code></pre>
+<p><code>indent=2</code> deixa legível; <code>sort_keys=True</code> deixa o diff estável no git. Para ver a estrutura de um JSON desconhecido, imprima <code>list(dados.keys())</code> nível a nível em vez de imprimir tudo.</p>
+<div class="warn"><h4>Erros comuns</h4><ul>
+<li><code>json.dumps</code> quebra com <code>datetime</code>, <code>set</code> e dataclass: <code>TypeError: not JSON serializable</code>. Converta para string/lista/dict antes, ou use <code>default=str</code>.</li>
+<li>Confundir <code>load</code> (arquivo) com <code>loads</code> (string).</li>
+<li>JSON não aceita vírgula final nem comentários. YAML aceita; JSON não.</li>
+</ul></div>`},
+f1w2d10:{min:10,html:`
+<h4>Exceção: o erro que sobe até alguém tratar</h4>
+<p>Quando algo dá errado, Python <i>levanta</i> uma exceção. Se ninguém tratar, o programa morre com traceback. <code>try/except</code> captura: o bloco <code>try</code> roda; se levantar exceção do tipo listado no <code>except</code>, o bloco do <code>except</code> roda em vez de morrer. <code>finally</code> roda sempre, para limpeza. <code>else</code> roda se não houve exceção.</p>
+<h4>Seja específico</h4>
+<p><code>except Exception:</code> engole tudo, inclusive bugs seus. Capture o tipo que você espera: <code>FileNotFoundError</code>, <code>json.JSONDecodeError</code>, <code>ValueError</code>, <code>KeyError</code>, <code>IndexError</code>. Cada um diz algo diferente e merece mensagem diferente. Guarde o objeto com <code>as e</code> para usar a mensagem.</p>
+<h4>Levante as suas</h4>
+<p><code>raise ValueError("porta fora do intervalo")</code> interrompe com uma mensagem. Para erros do seu domínio, crie uma classe: <code>class LinhaInvalida(ValueError): pass</code>. Quem chama pode tratar <code>LinhaInvalida</code> separado de outros <code>ValueError</code>.</p>
+<pre><code>import sys, json
+
+class LinhaInvalida(ValueError):
+    pass
+
+def parse_linha(linha):
+    partes = linha.split('"')
+    if len(partes) &lt; 3:
+        raise LinhaInvalida(f"formato inesperado: {linha[:40]!r}")
+    ...
+
+def main(caminho):
+    try:
+        with open(caminho, encoding="utf-8") as f:
+            cfg = json.load(f)
+    except FileNotFoundError:
+        print(f"arquivo não encontrado: {caminho}", file=sys.stderr)
+        sys.exit(1)
+    except json.JSONDecodeError as e:
+        print(f"JSON inválido na linha {e.lineno}: {e.msg}", file=sys.stderr)
+        sys.exit(1)</code></pre>
+<p>Regra para CLI: erro esperado vira mensagem em <code>stderr</code> e <code>sys.exit(1)</code>. Erro inesperado deixa o traceback aparecer; ele é a informação que você precisa para corrigir. Exit code diferente de zero é o que o pipeline e o cron enxergam.</p>
+<div class="warn"><h4>Erros comuns</h4><ul>
+<li><code>except:</code> sem tipo captura até <code>KeyboardInterrupt</code> (Ctrl+C). Nunca.</li>
+<li><code>except Exception: pass</code> — silencia o problema. Se vai ignorar, logue.</li>
+<li>Tratar exceção longe demais de onde acontece. Trate onde você sabe o que fazer com ela.</li>
+</ul></div>`},
+f1w3d11:{min:9,html:`
+<h4>Classe: dados e comportamento juntos</h4>
+<p>Até agora um LogEntry era um dict. Funciona, mas nada impede uma chave errada, e as funções que operam sobre ele ficam soltas. Uma <b>classe</b> define um molde: quais campos um objeto tem e o que ele sabe fazer. Cada objeto criado a partir dela é uma <b>instância</b>.</p>
+<p><code>__init__</code> roda ao criar a instância e recebe os campos. <code>self</code> é a própria instância; todo método recebe <code>self</code> como primeiro parâmetro e acessa os campos por <code>self.campo</code>. Métodos são funções que pertencem ao objeto: <code>entry.is_error()</code> em vez de <code>is_error(entry)</code>.</p>
+<pre><code>class LogEntry:
+    def __init__(self, ip: str, metodo: str, rota: str, status: int):
+        self.ip = ip
+        self.metodo = metodo
+        self.rota = rota
+        self.status = status
+
+    def is_error(self) -&gt; bool:
+        return self.status &gt;= 500
+
+    def para_dict(self) -&gt; dict:
+        return {"ip": self.ip, "metodo": self.metodo, "rota": self.rota, "status": self.status}
+
+    def __repr__(self) -&gt; str:
+        return f"LogEntry({self.metodo} {self.rota} -&gt; {self.status})"
+
+e = LogEntry("10.0.3.7", "GET", "/api", 502)
+print(e, e.is_error())          # LogEntry(GET /api -&gt; 502) True</code></pre>
+<p><code>__repr__</code> define como o objeto aparece em <code>print</code> e no REPL. Sem ele, você vê <code>&lt;LogEntry object at 0x7f...&gt;</code>, inútil para depurar. Escreva sempre.</p>
+<h4>Quando usar classe em vez de dict</h4>
+<p>Quando os campos são fixos e conhecidos, quando há comportamento associado, ou quando você quer que o editor complete <code>entry.</code> e aponte campo errado. Dados que vêm de fora e você só repassa (o JSON da API) podem continuar dict.</p>
+<div class="warn"><h4>Erros comuns</h4><ul>
+<li>Esquecer <code>self</code> na assinatura do método: <code>TypeError: takes 0 positional arguments but 1 was given</code>.</li>
+<li>Esquecer <code>self.</code> ao ler um campo dentro do método.</li>
+<li>Herança no primeiro dia. Não precisa. Composição e dataclasses (amanhã) resolvem quase tudo.</li>
+</ul></div>`},
+f1w3d12:{min:8,html:`
+<h4>dataclass: a classe de ontem em 6 linhas</h4>
+<p>O <code>__init__</code> que só copia parâmetros para <code>self</code> e o <code>__repr__</code> que lista campos são iguais em toda classe de dados. <code>@dataclass</code> escreve os dois para você, mais <code>__eq__</code> (compara campo a campo). Você declara os campos com type hints e pronto.</p>
+<pre><code>from dataclasses import dataclass, field, asdict
+
+@dataclass(frozen=True)
+class LogEntry:
+    ip: str
+    metodo: str
+    rota: str
+    status: int
+    tempo_ms: int | None = None     # opcional, com padrão
+
+    def is_error(self) -&gt; bool:
+        return self.status &gt;= 500
+
+e = LogEntry("10.0.3.7", "GET", "/api", 502)
+print(e)              # LogEntry(ip='10.0.3.7', metodo='GET', rota='/api', status=502, tempo_ms=None)
+print(asdict(e))      # dict, de graça</code></pre>
+<p><code>frozen=True</code> torna a instância imutável: tentar <code>e.status = 200</code> levanta erro. Bom para registros que representam um fato (uma linha de log não muda). Campos com padrão mutável (lista) precisam de <code>field(default_factory=list)</code>.</p>
+<h4>Type hints valem a pena a partir de hoje</h4>
+<p><code>list[str]</code>, <code>dict[str, int]</code>, <code>int | None</code>. Python não verifica em tempo de execução; <b>mypy</b> verifica antes: <code>pip install mypy &amp;&amp; mypy src/</code>. Ele pega <code>status</code> string onde deveria ser int, chamada com parâmetro faltando, retorno errado. Rode junto com os testes.</p>
+<div class="warn"><h4>Erros comuns</h4><ul>
+<li>Campo sem padrão depois de campo com padrão: <code>TypeError</code>. Obrigatórios primeiro.</li>
+<li><code>Optional[int]</code> e <code>int | None</code> são a mesma coisa; a segunda forma é a atual (3.10+).</li>
+<li>Anotar tudo como <code>Any</code> para calar o mypy. Aí ele não serve para nada.</li>
+</ul></div>`},
+f1w3d13:{min:9,html:`
+<h4>Teste: código que verifica código</h4>
+<p>Um teste é uma função que chama a sua função com uma entrada conhecida e afirma o resultado. Se a afirmação falha, o teste falha. <b>pytest</b> acha todo arquivo <code>test_*.py</code>, roda toda função <code>test_*</code> e mostra o que quebrou. <code>pip install pytest</code>, depois <code>pytest -q</code> na raiz do projeto.</p>
+<pre><code># tests/test_parser.py
+import pytest
+from logtool.parser import parse_linha, contar_status, LinhaInvalida
+
+LINHA = '10.0.3.7 - - [29/Sep/2026:10:15:01 +0000] "GET /api HTTP/1.1" 502 178'
+
+def test_parse_extrai_campos():
+    e = parse_linha(LINHA)
+    assert e.ip == "10.0.3.7"
+    assert e.metodo == "GET"
+    assert e.status == 502
+
+def test_linha_invalida_levanta():
+    with pytest.raises(LinhaInvalida):
+        parse_linha("lixo sem aspas")
+
+def test_contar_status_vazio():
+    assert contar_status([]) == {}
+
+@pytest.fixture
+def entradas():
+    return [parse_linha(LINHA), parse_linha(LINHA.replace("502", "200"))]
+
+def test_contar_status(entradas):
+    assert contar_status(entradas) == {502: 1, 200: 1}</code></pre>
+<p><code>assert</code> compara; quando falha, pytest mostra os dois lados. <code>pytest.raises</code> afirma que uma exceção acontece. Uma <b>fixture</b> é uma função que prepara dados; testes que a pedem por nome no parâmetro recebem o resultado. Serve para não repetir setup.</p>
+<h4>O que testar</h4>
+<p>O caso normal, o caso vazio, o caso inválido. Uma função pura (entrada → saída, sem arquivo nem rede) é trivial de testar; é por isso que o dia 6 insistiu em separar cálculo de impressão. Escreva o teste, veja falhar, corrija, veja passar. Se nunca viu vermelho, não sabe se o teste testa algo.</p>
+<div class="warn"><h4>Erros comuns</h4><ul>
+<li>Testar a implementação em vez do comportamento: o teste quebra em toda refatoração.</li>
+<li>Teste que depende de arquivo real ou hora atual. Passe os dados por parâmetro.</li>
+<li><code>ModuleNotFoundError</code> no teste: rode <code>pytest</code> da raiz e instale o pacote em modo editável (<code>pip install -e .</code>) a partir do dia 15.</li>
+</ul></div>`},
+f1w3d14:{min:9,html:`
+<h4>Três módulos da stdlib que economizam metade do código de infra</h4>
+<h4>pathlib</h4>
+<p><code>Path</code> representa um caminho como objeto. <code>Path("logs") / "app.log"</code> junta com <code>/</code> em qualquer SO. <code>.exists()</code>, <code>.read_text()</code>, <code>.write_text()</code>, <code>.glob("*.log")</code>, <code>.name</code>, <code>.suffix</code>, <code>.parent</code>. Para caminhos relativos ao script, e não ao diretório de execução: <code>Path(__file__).parent / "config.yaml"</code>.</p>
+<h4>datetime</h4>
+<p><code>datetime.strptime(texto, formato)</code> converte string em data; <code>strftime</code> faz o inverso. <code>timedelta(minutes=5)</code> é uma duração; datas subtraídas dão timedelta. Trabalhe em UTC (<code>datetime.now(timezone.utc)</code>); converta só na exibição. Para o formato do nginx: <code>"%d/%b/%Y:%H:%M:%S %z"</code>.</p>
+<h4>collections</h4>
+<p><code>Counter(iteravel)</code> conta ocorrências e devolve um dict; <code>.most_common(3)</code> dá o top 3. <code>defaultdict(list)</code> é um dict que cria o valor padrão na primeira vez que uma chave é usada: <code>por_minuto[minuto].append(e)</code> sem checar se a chave existe. <code>deque(maxlen=N)</code> guarda só os últimos N.</p>
+<pre><code>from pathlib import Path
+from collections import Counter, defaultdict
+from datetime import datetime
+
+por_minuto = defaultdict(list)
+for arq in Path("logs").glob("*.log"):
+    for linha in arq.read_text(encoding="utf-8").splitlines():
+        if not linha:
+            continue
+        e = parse_linha(linha)
+        ts = datetime.strptime(e.timestamp, "%d/%b/%Y:%H:%M:%S %z")
+        por_minuto[ts.strftime("%H:%M")].append(e)
+
+erros_5xx = Counter({m: sum(1 for e in es if e.is_error()) for m, es in por_minuto.items()})
+print(erros_5xx.most_common(1))    # minuto com mais 5xx</code></pre>
+<p>O dict comprehension <code>{chave: valor for ...}</code> segue a mesma ideia da list comprehension. <code>sum(1 for ...)</code> conta itens que satisfazem a condição sem criar lista.</p>
+<div class="warn"><h4>Erros comuns</h4><ul>
+<li>Concatenar caminho com <code>+</code> e string: <code>"logs" + "/" + nome</code>. Use <code>Path</code>.</li>
+<li>Comparar datetime com e sem timezone: <code>TypeError</code>. Ou todos naive, ou todos aware.</li>
+<li><code>%b</code> depende do locale; para logs em inglês, garanta locale C ou use <code>dateutil</code> mais tarde.</li>
+</ul></div>`},
+f1w3d15:{min:8,html:`
+<h4>Um projeto que outra pessoa consegue rodar</h4>
+<p>Estrutura padrão:</p>
+<pre><code>logtool/
+├── pyproject.toml
+├── README.md
+├── .gitignore
+├── src/logtool/
+│   ├── __init__.py
+│   ├── parser.py
+│   └── cli.py
+└── tests/
+    └── test_parser.py</code></pre>
+<p><code>src/</code> separa o pacote dos testes e evita importar por acidente a cópia local em vez da instalada. <code>__init__.py</code> (pode ser vazio) marca a pasta como pacote. Instale em modo editável com <code>pip install -e .</code>; aí <code>from logtool.parser import ...</code> funciona em qualquer lugar.</p>
+<h4>pyproject.toml substitui requirements.txt</h4>
+<pre><code>[project]
+name = "logtool"
+version = "0.1.0"
+requires-python = "&gt;=3.12"
+dependencies = ["rich", "pyyaml"]
+
+[project.scripts]
+logtool = "logtool.cli:main"     # cria o comando 'logtool'
+
+[tool.ruff]
+line-length = 100
+[tool.ruff.lint]
+select = ["E", "F", "I", "B"]    # erros, imports, bugs comuns</code></pre>
+<h4>ruff: lint e formatação em uma ferramenta</h4>
+<p><code>ruff check .</code> aponta imports não usados, variáveis mortas, bugs prováveis. <code>ruff format .</code> formata no estilo padrão (equivalente ao black). Rode os dois antes de todo commit; melhor ainda, instale <code>pre-commit</code> e deixe automático. Código formatado igual em todo arquivo tira uma classe inteira de discussão em code review.</p>
+<h4>Commits</h4>
+<p>Um commit por mudança lógica, mensagem no imperativo dizendo o quê e por quê: <code>Adiciona parse de timestamp no LogEntry</code>. Nunca <code>fix</code>, <code>wip</code>, <code>update</code>. O <code>git log</code> é documentação.</p>
+<div class="warn"><h4>Erros comuns</h4><ul>
+<li>Commitar <code>.venv/</code>, <code>__pycache__/</code>, <code>.env</code>. O <code>.gitignore</code> resolve; use o template de Python do GitHub.</li>
+<li>Imports relativos frágeis (<code>from parser import</code>) que funcionam só quando você roda de uma pasta específica. Com <code>src/</code> + editable install, sempre <code>from logtool.parser import</code>.</li>
+<li>Deixar o README para depois. Escreva os três comandos: instalar, rodar, testar.</li>
+</ul></div>`},
+};
+
+// ---- state
+const KEY="python-infra-progress";
+let done={};
+try{done=JSON.parse(localStorage.getItem(KEY)||"{}")||{}}catch(e){done={}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(done))}catch(e){}}
+
+let dayCounter=0;
+const dayIds=[];
+COURSE.forEach(ph=>ph.weeks.forEach((w,wi)=>w.days.forEach(d=>{d.id=`f${ph.id}w${wi+1}d${d.n}`;d.globalDay=++dayCounter;dayIds.push(d.id)})));
+
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
+
+function renderDay(d){
+  const chk=done[d.id]?"checked":"";
+  return `<div class="day ${d.weekend?"weekend":""} ${done[d.id]?"done":""}" data-id="${d.id}">
+    <input type="checkbox" id="chk-${d.id}" ${chk}>
+    <div class="t"><label for="chk-${d.id}">${esc(d.t)}</label><span class="d">${d.weekend?"fim de semana":"dia "+d.globalDay}</span></div>
+    <div class="body">
+      <div class="tags">${d.c.map(c=>`<span class="tag">${esc(c)}</span>`).join("")}</div>
+      ${LESSONS[d.id]?`<details class="aula" ${d.globalDay===1?"open":""}><summary>Aula<span class="m">${LESSONS[d.id].min} min de leitura</span></summary><div class="lesson">${LESSONS[d.id].html}</div></details>`:""}
+      <div class="row"><span class="k">Script</span><span class="v">${esc(d.s)}</span></div>
+      <div class="row"><span class="k">Exercício</span><span class="v">${esc(d.e)}</span></div>
+      <div class="row"><span class="k">Pronto quando</span><span class="v">${esc(d.p)}</span></div>
+      ${d.code?`<details class="code"><summary>ver código de exemplo</summary><pre><code>${esc(d.code)}</code></pre></details>`:""}
+    </div></div>`;
+}
+
+function renderPhase(ph){
+  return `<section class="phase" id="fase-${ph.id}" role="tabpanel">
+    <div class="phase-head"><span class="eyebrow">${esc(ph.tag)}</span><h2>${esc(ph.name)}</h2><p>${esc(ph.intro)}</p></div>
+    <div class="goal"><span class="eyebrow">Projeto da fase</span><p>${esc(ph.goal)}</p></div>
+    ${ph.weeks.map((w,i)=>`<details class="week" ${i===0?"open":""} data-week="${ph.id}-${i}">
+      <summary><span class="n">Semana ${(ph.id-1)*3+i+1}</span>${esc(w.title)}<span class="wk-prog" data-wk="${ph.id}-${i}"></span></summary>
+      <div class="days">${w.days.map(renderDay).join("")}</div></details>`).join("")}
+  </section>`;
+}
+
+const main=document.getElementById("main"), tabs=document.getElementById("tabs");
+main.innerHTML=COURSE.map(renderPhase).join("");
+tabs.innerHTML=COURSE.map(ph=>`<button role="tab" data-ph="${ph.id}">Fase ${ph.id} · ${esc(ph.name)}</button>`).join("");
+
+function showPhase(id){
+  COURSE.forEach(ph=>{document.getElementById("fase-"+ph.id).hidden=ph.id!==id});
+  tabs.querySelectorAll("button").forEach(b=>b.setAttribute("aria-selected",String(+b.dataset.ph===id)));
+  try{localStorage.setItem(KEY+":phase",id)}catch(e){}
+}
+tabs.addEventListener("click",e=>{const b=e.target.closest("button");if(b)showPhase(+b.dataset.ph)});
+
+function refresh(){
+  const n=dayIds.filter(id=>done[id]).length;
+  document.getElementById("done-count").textContent=n;
+  document.getElementById("rail").style.width=(n/dayIds.length*100)+"%";
+  // current phase = first with an unchecked day
+  let cur=4;
+  for(const ph of COURSE){if(ph.weeks.some(w=>w.days.some(d=>!done[d.id]))){cur=ph.id;break}}
+  document.getElementById("cur-phase").textContent=cur;
+  // streak = consecutive checked days from the start
+  let s=0;for(const id of dayIds){if(done[id])s++;else break}
+  document.getElementById("streak").textContent=s;
+  COURSE.forEach(ph=>ph.weeks.forEach((w,i)=>{
+    const el=document.querySelector(`[data-wk="${ph.id}-${i}"]`);
+    const k=w.days.filter(d=>done[d.id]).length;el.textContent=`${k}/${w.days.length}`;
+  }));
+}
+main.addEventListener("change",e=>{
+  if(e.target.type!=="checkbox")return;
+  const card=e.target.closest(".day");const id=card.dataset.id;
+  if(e.target.checked)done[id]=true;else delete done[id];
+  card.classList.toggle("done",e.target.checked);save();refresh();
+});
+document.getElementById("reset").addEventListener("click",()=>{
+  const b=document.getElementById("reset");
+  if(b.dataset.arm!=="1"){b.dataset.arm="1";b.textContent="Clique de novo para confirmar";setTimeout(()=>{b.dataset.arm="";b.textContent="Zerar progresso"},4000);return}
+  done={};save();main.querySelectorAll("input[type=checkbox]").forEach(c=>{c.checked=false;c.closest(".day").classList.remove("done")});
+  b.dataset.arm="";b.textContent="Zerar progresso";refresh();
+});
+
+let startPhase=1;
+try{startPhase=+localStorage.getItem(KEY+":phase")||1}catch(e){}
+const h=location.hash.replace("#","");if(/^fase-\d$/.test(h))startPhase=+h.slice(-1);
+showPhase(startPhase);refresh();
+</script>
