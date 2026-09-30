@@ -488,7 +488,7 @@ print(f"{'nome':&lt;10}|{'cpu':&gt;6}")     # colunas alinhadas</code></pre>
 <li><code>"4" * 2</code> é <code>"44"</code>, não 8. String vezes inteiro repete o texto.</li>
 <li><code>"4" + 2</code> quebra com <code>TypeError</code>. Converta antes: <code>int("4") + 2</code>.</li>
 <li><code>0.1 + 0.2 == 0.3</code> é <code>False</code>. Float tem imprecisão; para dinheiro, arredonde na saída com <code>:.2f</code> ou use <code>decimal</code> mais tarde.</li>
-<li><code>280.320000</code> na saída: você escreveu <code>:.6f</code>. Leia o formato assim: <code>{valor:.2f}</code> = <i>dois-pontos</i> começa a formatação, <i>.2</i> é o número de casas, <i>f</i> é "float". Sem formato nenhum, Python imprime o que der: <code>280.32000000000005</code>.</li>
+<li>Casas decimais erradas na saída (<code>280.320000</code>): o número depois do ponto no formato controla quantas casas aparecem. <code>{custo:.2f}</code> → <code>280.32</code>; <code>{custo:.6f}</code> → <code>280.320000</code>; sem formato → <code>280.32000000000005</code>. Para dinheiro, sempre <code>:.2f</code>.</li>
 </ul></div>`},
 f1w1d2:{min:9,html:`
 <h4>Strings são sequências</h4>
